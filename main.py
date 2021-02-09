@@ -2,44 +2,66 @@ import networkx as nx
 import random
 import matplotlib.pyplot as plt
 
-def main():
-    graphs = LoadFile()
-    G = StartInfection(graphs[0])
-    color_map = MakeColorMap(G)
-
-    print("Day: 0")
-    statuses = ListStatus(G)
-    print(statuses)
-
-    nx.draw_circular(G, node_color=color_map, with_labels=True, font_weight='bold')
-    plt.show()
-
-    for i in range(0, 5):
-        G = SpreadInfection(G)
-        # color_map = MakeColorMap(G)
-        # nx.draw(G, node_color=color_map, with_labels=True, font_weight='bold')
-        # plt.show()
-
-        G = UpdateInfection(G)
+def main(plot=False, load=False, prnt_list=False, start_percent=5, infect_percent=15, days_infected=3, nodes=100, type="watts", draw="circular"):
+    num_days = list()
+    for i in range(0, 10):
+        if load:
+            graphs = LoadFile()
+        else:
+            graphs = GetRandomGraph(nodes, type)
+        print("Clustering Coefficient: " + str(nx.clustering(graphs[0])))
+        G = StartInfection(graphs[0], start_percent, days_infected)
         color_map = MakeColorMap(G)
 
-        print("Day: " + str(i + 1))
+
         statuses = ListStatus(G)
-        print(statuses)
+        if prnt_list:
+            print("Day: 0")
+            print(statuses)
 
-        nx.draw_circular(G, node_color=color_map, with_labels=True, font_weight='bold')
-        plt.show()
+        if plot:
+            if draw == "circular":
+                nx.draw_circular(G, node_color=color_map, with_labels=True, font_weight='bold')
+            else:
+                nx.draw(G, node_color=color_map, with_labels=True, font_weight='bold')
+            plt.show()
+
+        # for i in range(0, 10):
+        i = 0
+        while "Infected" in statuses:
+            G = SpreadInfection(G, infect_percent)
+            # color_map = MakeColorMap(G)
+            # nx.draw(G, node_color=color_map, with_labels=True, font_weight='bold')
+            # plt.show()
+
+            G = UpdateInfection(G, days_infected)
+            color_map = MakeColorMap(G)
+
+            i += 1
+            statuses = ListStatus(G)
+            if prnt_list:
+                print("Day: " + str(i))
+                print(statuses)
+
+            if plot:
+                if draw == "circular":
+                    nx.draw_circular(G, node_color=color_map, with_labels=True, font_weight='bold')
+                else:
+                    nx.draw(G, node_color=color_map, with_labels=True, font_weight='bold')
+                plt.show()
+        num_days.append(i)
+    print(num_days)
 
 
 
-def SpreadInfection(G):
+def SpreadInfection(G, infect_percent):
     for edges in G.edges:
         if (G.nodes[edges[0]]["status"] == "Healthy" and G.nodes[edges[1]]["status"] == "Infected") or (G.nodes[edges[0]]["status"] == "Infected" and G.nodes[edges[1]]["status"] == "Healthy"):
             node = edges[0]
             if G.nodes[edges[1]]["status"] == "Healthy":
                 node = edges[1]
 
-            if random.randint(0, 4) == 0:
+            if random.randint(0, 100) < infect_percent:
                 G.nodes[node]["status"] = "Newly Infected"
 
         # print(edges[0] + ":" + G.nodes[edges[0]]["status"])
@@ -47,7 +69,7 @@ def SpreadInfection(G):
         # print()
     return G
 
-def UpdateInfection(G):
+def UpdateInfection(G, days_infected):
     for node_data in G.nodes.data():
         node = G.nodes[node_data[0]]
         if node['status'] == "Infected":
@@ -56,15 +78,15 @@ def UpdateInfection(G):
                 node['status'] = "Recovered"
         elif node["status"] == "Newly Infected":
             node['status'] = "Infected"
-            node['days_remaining'] = 2
+            node['days_remaining'] = days_infected
     return G
 
-def StartInfection(G):
+def StartInfection(G, start_percent, days_infected):
     for node_data in G.nodes.data():
         node = G.nodes[node_data[0]]
-        if random.randint(0, 3) == 0:
+        if random.randint(0, 100) < start_percent:
             node['status'] = "Infected"
-            node['days_remaining'] = 2
+            node['days_remaining'] = days_infected
         else:
             node['status'] = "Healthy"
     return G
@@ -91,6 +113,13 @@ def ListStatus(G):
             statuses[node['status']] = list()
         statuses[node['status']].append(node_data[0])
     return statuses
+
+def GetRandomGraph(nodes, type):
+    if (type == "random"):
+        return [nx.gnm_random_graph(nodes, 350)]
+    elif (type == "watts"):
+        return [nx.connected_watts_strogatz_graph(nodes, 5, .3)]
+    return [nx.connected_watts_strogatz_graph(nodes, 5, .3)]
 
 def LoadFile():
     graph_list = list()
